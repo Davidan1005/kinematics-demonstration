@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Initialisation of static stuff
-fig, ax = plt.subplots(figsize = (7,7))
+fig, ax = plt.subplots()
 
+ax.set_aspect('equal')
 ax.set_xlim(-10,10)
 ax.set_ylim(-10,10)
 
