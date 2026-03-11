@@ -3,55 +3,54 @@ import numpy as np
 
 
 # to do
-# implement arm class to manage the states of all links
-
 
 class Link():
-    def __init__(self):
+    def __init__(self,angle=0):
         self.length = 3
-        self.angle = 0
-        self.start_position= np.array([0,0])
-        self.end_position = np.array([
-            self.start_position[0] + (self.length*np.cos(self.angle)),
-            self.start_position[1] + (self.length*np.sin(self.angle))
-            ])
-        self.xs = np.array([self.start_position[0],self.end_position[0]])
-        self.ys = np.array([self.start_position[1],self.end_position[1]])
-
-    def update_end(self):
-        self.end_position = np.array([
-            self.start_position[0] + (self.length*np.cos(self.angle)),
-            self.start_position[1] + (self.length*np.sin(self.angle))
-            ])
-        self.xs = np.array([self.start_position[0],self.end_position[0]])
-        self.ys = np.array([self.start_position[1],self.end_position[1]])
+        self.angle = angle
 
         
+    def get_components(self,absolute_angle):
+        self.components = np.array([
+            (self.length*np.cos(absolute_angle)),
+            (self.length*np.sin(absolute_angle))
+        ])
+        return self.components
+
+
+
+
+class Arm():
+    def __init__(self, links):
+
+        self.links = links
+        cumulative_position = np.array([0, 0])
+        cumulative_angle = 0
+
+        for link in self.links:
+            cumulative_angle += link.angle
+
+            ax.plot([cumulative_position[0], cumulative_position[0]+link.get_components(cumulative_angle)[0]],
+                    [cumulative_position[1], cumulative_position[1]+link.get_components(cumulative_angle)[1]], marker='o')
+
+            cumulative_position = cumulative_position+link.components
+            
+
 
 # Static stuff (Initialises plotting space and shit)
 fig, ax = plt.subplots()
 ax.set_aspect('equal')
 
-ax.set_xlim(-10,10)
-ax.set_ylim(-10,10)
+ax.set_xlim(-10, 10)
+ax.set_ylim(-10, 10)
 # Static stuff
 
-link1 = Link()
-link2 = Link()
-link2.start_position = link1.end_position
-link2.update_end()
+link1 = Link(np.pi/2)
+link2 = Link(np.pi/2)
 
-link2.angle = 45
+links = [link1, link2]
 
-
-
-link1_line, = ax.plot(link1.xs,link1.ys)
-
-
-
-link2_line, = ax.plot(link2.xs,link2.ys)
-    
+arm = Arm(links)
 
 
 plt.show()
-
