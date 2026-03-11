@@ -39,45 +39,72 @@ import numpy as np
 #    - Structure code to scale to 3+ links for future Jacobian-based IK
 #    - Prepare for trajectory planning or path following in the future
 
-# 6. Performance & Style
-#    - Avoid np.append() in loops; use lists + np.array at the end
-#    - Prefer NumPy arrays for slicing and vector math over Python lists
-#    - Keep a clear separation of responsibilities: computation vs drawing vs state
 
 class Link():
-    def __init__(self, angle=0):
-        self.length = 3
-        self.angle = angle
-
-    def get_components(self, absolute_angle):
-        return np.array([
-            (self.length*np.cos(absolute_angle)),
-            (self.length*np.sin(absolute_angle))
-        ])
-
+    def __init__(self,length):
+        self.length = length
 
 class Arm():
-
     def __init__(self, links):
         self.links = links
+        self.angles = np.zeros(len(self.links))
+
+    def get_link_components(self,link,angle):
+        return np.array([link.length*np.cos(angle), link.length*np.sin(angle)])
 
     def forward_kinematics(self):
+        """Reads state of angles then calculates all joint positions"""
         cumulative_position = np.array([0, 0])
         cumulative_angle = 0
+        
+        #incrementor
+        joint = 0
 
         joint_positions = [cumulative_position.copy()]
 
         for link in self.links:
-            cumulative_angle += link.angle
-            cumulative_position = cumulative_position + \
-                link.get_components(cumulative_angle)
 
+            cumulative_angle += self.angles[joint]
+            
+            cumulative_position = cumulative_position + \
+                self.get_link_components(link,cumulative_angle)
+            
             joint_positions.append(cumulative_position.copy())
+
+            joint+=1
+
+        self.effector = cumulative_position
 
         return np.array(joint_positions)
 
     def draw(self, ax, coordinates):
         ax.plot(coordinates[:, 0], coordinates[:, 1], marker='o')
+    
+    def update_state(self, new_state):
+        """Only function with the responsibility of chnaging joint angle state"""
+        self.angles = new_state
+
+    def animate(self, ax, duration, frames, new_state,rate=0.1):
+
+        wait_time = duration/frames
+
+        for frame in range(frames):
+
+            ax.clear()
+            ax.set_aspect('equal')
+            ax.set_xlim(-10, 10)
+            ax.set_ylim(-10, 10)
+
+            if np.linalg.norm(new_state-self.angles)> 0.001:
+                self.update_state(self.angles + ((new_state-self.angles)*rate))
+            else:
+                self.update_state(new_state)
+            
+            self.draw(ax, self.forward_kinematics())
+
+            plt.pause(wait_time)
+                
+
 
 
 # Static stuff (Initialises plotting space and shit)
@@ -88,14 +115,14 @@ ax.set_xlim(-10, 10)
 ax.set_ylim(-10, 10)
 # Static stuff
 
-link1 = Link(np.pi/6)
-link2 = Link(np.pi/2)
+link1 = Link(5)
+link2 = Link(3)
 
 links = [link1, link2]
 
 arm = Arm(links)
 coordinates = arm.forward_kinematics()
-arm.draw(ax, coordinates)
+arm.animate(ax,10,1000,np.array([2,5]),0.1)
 
 
-plt.show()
+# plt.show()
