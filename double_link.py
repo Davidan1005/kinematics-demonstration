@@ -1,37 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+last_click = np.array([1,1])
+
 
 # to do:
-# Implement inverse kinematics with an animation showing the
-# rm's mption toward new desired point
-# 1. Structure
-#    - Separate robot model, state, and visualization
-#      - Model: store link lengths
-#      - State: store joint angles and joint positions (coordinates)
-#      - Methods: update_kinematics(), draw(ax)
-#    - Avoid computing coordinates inside draw(); just read stored state
-#    - Pass ax to draw() instead of using a global figure
+#  click to move inverse kinematics
 
+def onclick(event):
+    global last_click
+    if event.xdata is not None and event.ydata is not None:
+        last_click = np.array([event.xdata, event.ydata])
+        print(f'x={event.xdata:.2f}, y={event.ydata:.2f}')
+        plt.plot(event.xdata, event.ydata, 'ro') # Plot point
+        plt.draw() # Update figure
+    
+    new_angles = arm.inverse_kinematics_2link(last_click)
+    arm.animate(ax, 10, 1000, new_angles, last_click)
+    plt.draw()
 
-# 3. Animation
-#    - Use plt.pause() to update frames
-#    - Gradually increment joint angles per frame for smooth motion
-#      - Example: angle += (target_angle - angle) * 0.1
-#      - Think of it as “exponentially approaching” the target
-#      - Add a small threshold to stop when difference is tiny
-#    - Clear and redraw each frame inside a loop for smooth animation
-#    - Optional: animate toward a moving target
-
-# 4. Inverse Kinematics (2-link planar arm)
-#    - Use analytical solution (cosine law and arctangent)
-#    - Gradually update angles to reach the target for smooth motion
-#    - Consider both elbow-up and elbow-down solutions
-
-# 5. Optional Professional Improvements
-#    - Store joint angles as a vector (theta = [θ1, θ2, ...])
-#    - Structure code to scale to 3+ links for future Jacobian-based IK
-#    - Prepare for trajectory planning or path following in the future
 
 
 class Link():
@@ -43,6 +30,8 @@ class Arm():
         self.links = links
         self.angles = np.zeros(len(self.links))
         self.arm_length = 0
+        # Static points shouldn't be arms responsibility, this is temporary
+        self.static_points = []
 
         for link in links:
             self.arm_length+=link.length
@@ -107,15 +96,25 @@ class Arm():
             
             self.draw(ax, self.forward_kinematics())
 
-            ax.plot([static_point[0]], [static_point[1]], 'o')
+            ax.plot([static_point[0]], [static_point[1]], 'o', color = 'green' )
+
+            self.static_points.append(static_point)
 
             plt.pause(wait_time)
                 
-    def inverse_kinematics_2link(self,ax,target_pos):
+    def inverse_kinematics_2link(self,target_pos):
         """Eventually you will move the arm by an angle to give it a partiicular end effector position"""
         absolute_distance_squared =  target_pos[0]**2 + target_pos[1]**2 
 
-        theta2 = np.arccos( (absolute_distance_squared - self.links[0].length**2 - self.links[1].length**2)/(2*self.links[0].length*self.links[1].length))
+        cos_theta2 = (
+            absolute_distance_squared
+            - self.links[0].length**2
+            - self.links[1].length**2
+        )/(2*self.links[0].length*self.links[1].length)
+
+        cos_theta2 = np.clip(cos_theta2,-1,1)
+
+        theta2 = np.arccos(cos_theta2)
 
         k1 = self.links[0].length + (self.links[1].length*np.cos(theta2))
         k2 = self.links[1].length*np.sin(theta2)
@@ -126,7 +125,12 @@ class Arm():
 
         return target_angles
 
-    
+    def click_IK(self,ax):
+        """This will let you select a point on the axes click it and the arm will inverse kinematics its way there."""
+        self.draw(ax, self.forward_kinematics())
+        new_angles = self.inverse_kinematics_2link(last_click)
+        self.animate(ax, 10,1000, new_angles, last_click, 0.1)
+
 
 
 # Static stuff (Initialises plotting space and shit)
@@ -147,8 +151,10 @@ arm = Arm(links)
 # Initialise objects
 
 goal = np.array([-2,-3])
-new_angles = arm.inverse_kinematics_2link(ax, goal)
-arm.animate(ax, 10, 1000, new_angles, static_point=goal)
+new_angles = arm.inverse_kinematics_2link( goal)
+# arm.animate(ax, 10, 1000, new_angles, static_point=goal)
 
 
-# plt.show()
+arm.draw(ax,np.array([[0,0],[arm.links[0].length,0],[arm.links[0].length + arm.links[1].length,0]]))
+cid = fig.canvas.mpl_connect('button_press_event', onclick)
+plt.show()
